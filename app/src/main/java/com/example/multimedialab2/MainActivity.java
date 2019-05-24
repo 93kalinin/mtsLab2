@@ -12,6 +12,7 @@ import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -30,6 +31,7 @@ public class MainActivity extends Activity {
     private final int ONE_MINUTE = 60 * 1000;
     private final String ENCRYPTED_FILE_NAME = "encrypted.pcm";
     private final String DECRYPTED_FILE_NAME = "decrypted.pcm";
+    private EditText keyInput;
     private String FILE_PATH;
     private AudioRecord audioRecord;
 
@@ -40,7 +42,7 @@ public class MainActivity extends Activity {
         ActivityCompat.requestPermissions(this,
                 new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.WRITE_EXTERNAL_STORAGE,},
                 12345);
-
+        keyInput = findViewById(R.id.key_input);
         audioRecord = new AudioRecord(MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, BUFFER_SIZE);
         FILE_PATH = Environment.getExternalStorageDirectory().getPath() + "/";
@@ -52,28 +54,25 @@ public class MainActivity extends Activity {
 
     public void recordAndSave(View v) {
         audioRecord.startRecording();
-        new Handler().postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                audioRecord.stop();
-                byte[] myBuffer = new byte[BUFFER_SIZE];
-                byte[] pseudorandomNoise = new byte[BUFFER_SIZE];
-                byte[] result = new byte[BUFFER_SIZE];
-                Random pseudorandom = new Random(SEED);
+        new Handler().postDelayed(() -> {
+            audioRecord.stop();
+            byte[] myBuffer = new byte[BUFFER_SIZE];
+            byte[] pseudorandomNoise = new byte[BUFFER_SIZE];
+            byte[] result = new byte[BUFFER_SIZE];
+            Random pseudorandom = new Random(Integer.parseInt(keyInput.getText().toString()));
 
-                audioRecord.read(myBuffer, 0, BUFFER_SIZE);
-                pseudorandom.nextBytes(pseudorandomNoise);
-                for (int i = 0; i < BUFFER_SIZE; ++i)
-                    result[i] = (byte) (myBuffer[i] ^ pseudorandomNoise[i]);
+            audioRecord.read(myBuffer, 0, BUFFER_SIZE);
+            pseudorandom.nextBytes(pseudorandomNoise);
+            for (int i = 0; i < BUFFER_SIZE; ++i)
+                result[i] = (byte) (myBuffer[i] ^ pseudorandomNoise[i]);
 
-                try {
-                    BufferedOutputStream outputStream = new BufferedOutputStream(
-                            new FileOutputStream(FILE_PATH + ENCRYPTED_FILE_NAME));
-                    outputStream.write(result, 0, result.length);
-                    outputStream.close();
-                } catch (IOException e) {
-                    Log.e(TAG, "Error saving recording ", e);
-                }
+            try {
+                BufferedOutputStream outputStream = new BufferedOutputStream(
+                        new FileOutputStream(FILE_PATH + ENCRYPTED_FILE_NAME));
+                outputStream.write(result, 0, result.length);
+                outputStream.close();
+            } catch (IOException e) {
+                Log.e(TAG, "Error saving recording ", e);
             }
         }, ONE_MINUTE);
     }
@@ -82,7 +81,7 @@ public class MainActivity extends Activity {
         byte[] bytesFromFile = new byte[BUFFER_SIZE];
         byte[] pseudorandomNoise = new byte[BUFFER_SIZE];
         byte[] result = new byte[BUFFER_SIZE];
-        Random pseudorandom = new Random(SEED);
+        Random pseudorandom = new Random(Integer.parseInt(keyInput.getText().toString()));
 
         try {
             BufferedInputStream inputStream = new BufferedInputStream(
